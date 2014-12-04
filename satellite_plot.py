@@ -132,7 +132,7 @@ def reproj_fast(raw_data, raw_x, raw_y, xlim, ylim, res):
 
 
 if __name__=="__main__":
-    h5_filename='/Users/phil/repos/a301_2014/data/A2006303_*.h5'
+    h5_filename='data.h5'
     subset =glob.glob(h5_filename)[0]
 
     maxdim=None

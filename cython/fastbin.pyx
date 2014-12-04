@@ -6,8 +6,8 @@ from libc.stdio cimport printf
 
 @cython.embedsignature(True)
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
+@cython.wraparound(True)
+@cython.boundscheck(True)
 def do_bins(object data_vec,int the_numbins,float mindata,
             float maxdata,
             int missingLow= -200,int missingHigh= -100):
