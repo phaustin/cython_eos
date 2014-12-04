@@ -5,10 +5,10 @@ import site
 import glob
 import h5py
 import numpy as np
-import datetime
-import dateutil.tz as tz
+import time
 import site
-#site.addsitedir('/Users/phil/repos/a301_2014/lib')
+site.addsitedir('./cython')
+import fastbin as fb
 #
 import matplotlib
 matplotlib.use('Agg')
@@ -43,7 +43,7 @@ def reproj_slow(raw_data, raw_x, raw_y, xlim, ylim, res):
     =========================================================================================
     Reproject MODIS L1B file to a regular grid
     -----------------------------------------------------------------------------------------
-    d_array, x_array, y_array, bin_count = reproj_L1B(raw_data, raw_x, raw_y, xlim, ylim, res)
+    d_array, x_array, y_array, bin_count = reproj_slow(raw_data, raw_x, raw_y, xlim, ylim, res)
     -----------------------------------------------------------------------------------------
     Input:
             raw_data: L1B data, N*M 2-D array.
@@ -62,7 +62,6 @@ def reproj_slow(raw_data, raw_x, raw_y, xlim, ylim, res):
             size of "raw_data", "raw_x", "raw_y" must agree.
     =========================================================================================
     '''
-    import numpy as np
     
     x_bins=np.arange(xlim[0], xlim[1], res)
     y_bins=np.arange(ylim[0], ylim[1], res)
@@ -95,11 +94,47 @@ def reproj_slow(raw_data, raw_x, raw_y, xlim, ylim, res):
                 
     return d_array, x_array, y_array, bin_count
 
+
+def reproj_fast(raw_data, raw_x, raw_y, xlim, ylim, res):
+    
+    '''
+    =========================================================================================
+    Reproject MODIS L1B file to a regular grid
+    -----------------------------------------------------------------------------------------
+    d_array, x_array, y_array, bin_count = reproj_fast(raw_data, raw_x, raw_y, xlim, ylim, res)
+    -----------------------------------------------------------------------------------------
+    Input:
+            raw_data: L1B data, N*M 2-D array.
+            raw_x: longitude info. N*M 2-D array.
+            raw_y: latitude info. N*M 2-D array.
+            xlim: range of longitude, a list.
+            ylim: range of latitude, a list.
+            res: resolution, single value.
+    Output:
+            d_array: L1B reprojected data.
+            x_array: reprojected longitude.
+            y_array: reprojected latitude.
+            bin_count: how many raw data point included in a reprojected grid.
+    Note:
+            function do not performs well if "res" is larger than the resolution of input data.
+            size of "raw_data", "raw_x", "raw_y" must agree.
+    =========================================================================================
+    '''
+    minlon,maxlon=xlim
+    num_xbins=int((maxlon-minlon)/res)
+    minlat,maxlat=ylim
+    num_ybins=int((maxlat-minlat)/res)
+    lon_dict=fb.do_bins(raw_x,num_xbins,minlon,maxlon)
+    lat_dict=fb.do_bins(raw_y,num_ybins,minlat,maxlat)
+    y_array,x_array,d_array,bin_count=fb.hist_latlon(lon_dict,lat_dict,raw_data)
+    return d_array, x_array, y_array, bin_count
+
+
 if __name__=="__main__":
     h5_filename='/Users/phil/repos/a301_2014/data/A2006303_*.h5'
-    subset, =glob.glob(h5_filename)
+    subset =glob.glob(h5_filename)[0]
 
-    maxdim=500
+    maxdim=None
     xslice=slice(0,maxdim)
     yslice=slice(0,maxdim)
     with h5py.File(subset) as h5_file:
@@ -108,12 +143,20 @@ if __name__=="__main__":
         lats=h5_file['lattitude'][xslice,yslice]
         lons=h5_file['longitude'][xslice,yslice]
 
-
     res=0.05
     xlim=[np.min(lons), np.max(lons)]
     ylim=[np.min(lats), np.max(lats)]
+    t0=time.clock()
     c31_grid, longitude, latitude, bin_count = reproj_slow(chan31, lons, lats, xlim, ylim, res)
-
+    t1=time.clock()
+    slow_time=t1-t0
+    print('slow elapsed time = {:8.5f}'.format(slow_time))
+    t0=time.clock()      
+    c31_grid, longitude, latitude, bin_count = reproj_fast(chan31, lons, lats, xlim, ylim, res)
+    t1=time.clock()
+    fast_time=t1-t0
+    print('fast elapsed time = {:8.5f}'.format(fast_time))
+    print('speedup = {:8.1f}'.format((slow_time/fast_time)))
     plt.close('all')
     fig,ax=plt.subplots(1,1)
     ax.hist(lons.flat)
