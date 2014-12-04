@@ -9,6 +9,7 @@ import time
 import site
 site.addsitedir('./cython')
 import fastbin as fb
+import requests
 #
 import matplotlib
 matplotlib.use('Agg')
@@ -22,8 +23,8 @@ def fetchurl(urlname,outname):
               outname -- name of output file to write --  data.h5
        Returns: None
     """
-    with open(outfile, 'wb') as handle:
-        response = requests.get(file_url, stream=True)
+    with open(outname, 'wb') as handle:
+        response = requests.get(urlname, stream=True)
         if not response.ok:
             raise Exception('trouble with url')
         count=0
